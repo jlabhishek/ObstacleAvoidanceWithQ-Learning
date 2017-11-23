@@ -1,9 +1,13 @@
 import numpy as np
 import random
+import keras 
 from keras.models import Sequential, load_model
 from keras import optimizers
 from keras.layers import Dense,Dropout,Activation
 from keras.layers.advanced_activations import LeakyReLU
+from keras.utils import plot_model
+from keras import initializers
+
 
 
 # from keras.callbacks import TensorBoard
@@ -34,17 +38,17 @@ class NNQ:
 		self.learningRate = learningRate
 
 	def initNetworks(self, hiddenLayers):
-		model = self.createModel(self.input_size, self.output_size, hiddenLayers, "relu", self.learningRate)
+		model = self.createModel(self.input_size, self.output_size, hiddenLayers, "sigmoid", self.learningRate)
 		self.model = model
 
 
 	def createModel(self, inputs, outputs, hiddenLayers, activationType, learningRate):
 		model = Sequential()
 		if len(hiddenLayers) == 0: 
-			model.add(Dense(self.output_size, input_shape=(self.input_size,), init='lecun_uniform'))
+			model.add(Dense(self.output_size, input_shape=(self.input_size,))  )
 			model.add(Activation("linear"))
 		else :
-			model.add(Dense(hiddenLayers[0], input_shape=(self.input_size,), init='lecun_uniform'))
+			model.add(Dense(hiddenLayers[0], input_shape=(self.input_size,)))
 			if (activationType == "LeakyReLU") :
 				model.add(LeakyReLU(alpha=0.01))
 			else :
@@ -53,16 +57,17 @@ class NNQ:
 			for index in range(1, len(hiddenLayers)):
 				# print("adding layer "+str(index))
 				layerSize = hiddenLayers[index]
-				model.add(Dense(layerSize, init='lecun_uniform'))
+				model.add(Dense(layerSize))
 				if (activationType == "LeakyReLU") :
 					model.add(LeakyReLU(alpha=0.01))
 				else :
 					model.add(Activation(activationType))
-			model.add(Dense(self.output_size, init='lecun_uniform'))
+			model.add(Dense(self.output_size, input_shape=(self.input_size,)))
 			model.add(Activation("linear"))
-		optimizer = optimizers.RMSprop(lr=learningRate, rho=0.9, epsilon=1e-06)
-		model.compile(loss="mse", optimizer=optimizer,metrics=['accuracy'])
-		model.summary()
+		optimizer = optimizers.SGD(lr=0.01, clipnorm=1.)
+		model.compile(loss="mse", optimizer=optimizer)
+
+		# model.summary()
 		return model
 
 	def getQValues(self, state):
@@ -70,12 +75,37 @@ class NNQ:
 		predicted = self.model.predict(state.reshape(1,len(state)))
 		return predicted[0]
 
+	def saveQValues(self,episode_num):
+		f = open('Files/Qval.txt','a')
+		print( '\nQ VALUES for ',episode_num,file = f)
+		state = np.array([0,0,0])
+		for i in range (0,4):
+			for j in range(0,4):
+				for k in range(0,4):
+					state = np.array([i,j,k])
+		# predicted = self.model.predict(state.reshape(1,len(state)))
+					predicted = self.model.predict(state.reshape(1,len(state)))
+					print(state,' -> ', predicted[0],file = f)
+
+		f.close()
+	
+	def saveWeights(self,episode_num):
+		f = open('Files/Wval.txt','a')
+		print( '\nWeight VALUES for ',episode_num,file = f)
+		for layer in self.model.layers:
+			weights = layer.get_weights()
+			print(weights,file = f)
+	
 	def selectAction(self, qValues, explorationRate):
 		rand = random.random()
 		if rand < explorationRate :
 			action = np.random.randint(0, self.output_size)
+			print('RandomAction = ',action)
+
 		else :
 			action = self.getMaxIndex(qValues)
+			print('Action = ',action)
+
 		return action
 
 	def saveModel(self, path):
@@ -114,4 +144,8 @@ class NNQ:
 		Y_sample[action] = targetValue
 		Y_batch = np.append(Y_batch, np.array([Y_sample]), axis=0)
 
-		self.model.fit(X_batch, Y_batch, batch_size = mini_batch_size, nb_epoch=1, verbose = 1)
+		self.model.fit(X_batch, Y_batch, batch_size = mini_batch_size, epochs=30, verbose = 1, callbacks = [keras.callbacks.EarlyStopping(monitor='acc', min_delta=0, patience=0, verbose=1, mode='auto')])
+
+	def plotModel(self,path):
+		plot_model(self.model, to_file=path+'Model.png')
+
