@@ -10,18 +10,14 @@ def movingaverage(interval, window_size):
     return numpy.convolve(interval, window, 'same')
 
 
+sum  = 0
+print("Reward Average over 50 = ")
 
-r_avg=[]
-print("Reward Average (last100Ep) = ")
-# rewardList=rewardList[4000:]
-
-sumT = sum(rewardList[:100 ] )
 for i in range(len(rewardList)):
-	if i < 100:
-		r_avg.append(sum(rewardList[:i+1])/(i+1) )
-	else:
-		sumT = sumT + rewardList[i] - rewardList[i-100]
-		r_avg.append(sumT/100.0)
+	sum += rewardList[i]
+	if (i+1) % 50 == 0: 
+		print(round(sum/50,5), end=" ")
+		sum = 0
 
 sum  = 0
 print("\nStep Average over 50 = ")
@@ -30,8 +26,8 @@ for i in range(len(stepList)):
 	if stepList[i] > 195:
 		fail = True
 	sum += stepList[i]
-	if (i+1) % 100 == 0: 
-		print(sum/100.0, end=" ")
+	if (i+1) % 50 == 0: 
+		print(sum/50.0, end=" ")
 		sum = 0
 
 step_mav = movingaverage(stepList,window_size=10)
@@ -40,7 +36,7 @@ print("\nFail = ",fail)
 range = 3
 offset = 1
 fig = plt.figure(1)
-plt.subplot(311) # 211 = numrows,numcolumns, curront plot, 2 rows , 1 columns - first row first plot ; 212 = second row first plot
+plt.subplot(211) # 211 = numrows,numcolumns, curront plot, 2 rows , 1 columns - first row first plot ; 212 = second row first plot
 # https://matplotlib.org/users/pyplot_tutorial.html
 plt.axis([1, len(stepList)+10, 0, max(stepList)+10])
 plt.plot(stepList)
@@ -48,24 +44,13 @@ plt.title('Steps VS Episode')
 plt.ylabel('steps per episode')
 plt.xlabel('episode')
 
-offset = 10
-plt.subplot(312)
+offset = 1
+plt.subplot(212)
 plt.axis([1, len(stepList)+10, 0, max(stepList)+10])
 plt.plot(step_mav)
 plt.title('Mav_Steps VS Episode')
 plt.ylabel('Moving Average')
 plt.xlabel('episode')
-
-
-
-offset = 10
-plt.subplot(313)
-plt.axis([1, len(r_avg)+10, min(r_avg) - 1, max(r_avg)+1])
-plt.plot(r_avg)
-plt.title('Last100AvgReward VS Episode')
-plt.ylabel('R_Avg(last100Ep)')
-plt.xlabel('episode')
-
 
 plt.show()
 #fig.savefig(self.graphPath+str(episode + 1)+'.png')
